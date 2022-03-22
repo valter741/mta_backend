@@ -1,7 +1,10 @@
+from django.core import serializers
 from django.shortcuts import render
 
-from django.http import HttpResponse
-
+from django.http import JsonResponse
+from .models import User
 
 def index(request):
-    return HttpResponse("Hello, world. You're at the bckend index.")
+    data = list(User.objects.values())
+
+    return JsonResponse(data, safe=False)
