@@ -7,14 +7,14 @@ from rest_framework import status
 from math import ceil
 from django.utils import timezone
 import json
-
+from django.views.decorators.csrf import csrf_exempt
 
 def index(request):
     data = list(User.objects.values())
 
     return JsonResponse(data, safe=False)
 
-
+@csrf_exempt
 def view_tasks(request):
     columns = ('id', 'userid', 'targetid', 'name', 'taskid', 'content', 'was_seen', 'created_at')
     if request.method == 'GET':
@@ -31,6 +31,17 @@ def view_tasks(request):
             per_page = int(request.GET.get('per_page'))
         except TypeError:
             per_page = 10
+
+        # QUERY
+        query_userid = request.GET.get('userid', '')
+        if query_userid is not None:
+            if isinstance(query_userid, int):
+                query_set = query_set.filter(userid=query_userid)
+
+        query_targetid = request.GET.get('targetid', '')
+        if query_targetid is not None:
+            if isinstance(query_targetid, int):
+                query_set = query_set.filter(targetid=query_targetid)
 
         # ORDER BY
         order_column = request.GET.get('order_by')
@@ -60,7 +71,7 @@ def view_tasks(request):
 
         return JsonResponse({"items": list_items, "metadata": dict_metadata}, safe=False, status=status.HTTP_200_OK)
 
-
+@csrf_exempt
 def create_task(request):
     if request.method == 'POST':
         list_response = {}
