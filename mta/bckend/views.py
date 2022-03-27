@@ -16,10 +16,10 @@ def index(request):
 
 @csrf_exempt
 def view_tasks(request):
-    columns = ('id', 'userid', 'targetid', 'name', 'taskid', 'content', 'was_seen', 'created_at')
+    columns = ('id', 'userid', 'targetid', 'name', 'created_at')
     if request.method == 'GET':
         list_items = []
-        query_set = Task.objects.values('id', 'userid', 'targetid', 'name', 'taskid', 'content', 'was_seen', 'created_at')
+        query_set = Task.objects.values('id', 'userid', 'targetid', 'name', 'created_at')
 
         # STRANKOVANIE
         try:
@@ -147,8 +147,8 @@ def create_task(request):
             return JsonResponse({"errors": list_errors}, safe=False, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         else:
             new_task = Task.objects.create(
-                userid=int(user_id),
-                targetid=int(target_id),
+                userid=User.objects.get(pk=user_id),
+                targetid=User.objects.get(pk=target_id),
                 name=name,
                 objective=objective,
                 completion=int(completion),
