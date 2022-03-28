@@ -13,4 +13,6 @@ urlpatterns = [
     path('msg/delete/<int:id>', views.delete_msg_by_id, name='id'),
 
     path('noti/delete/<int:id>', views.delete_noti_by_id, name='id'),
+
+    path('profile/update/<int:id>', views.update_profile, name='id'),
 ]

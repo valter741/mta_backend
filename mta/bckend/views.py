@@ -1,9 +1,4 @@
-import logging
-
-from django.core import serializers
 from django.db.models import Q
-from django.shortcuts import render
-from django.db import connection
 from django.http import JsonResponse, HttpResponse, HttpRequest
 from .models import User, Task, Call, Contacts, Notification, Message
 from rest_framework import status
@@ -12,9 +7,12 @@ from django.utils import timezone
 import json
 from django.views.decorators.csrf import csrf_exempt
 
+
+
 def index(request):
-    data = list(User.objects.values())
+    data = list(User.objects.values('id', 'full_name'))
     return JsonResponse(data, safe=False)
+
 
 @csrf_exempt
 def view_tasks(request):
@@ -283,3 +281,18 @@ def delete_noti_by_id(request, id):
             return HttpResponse(status=status.HTTP_200_OK)
         else:
             return HttpResponse(status=status.HTTP_404_NOT_FOUND)
+
+@csrf_exempt
+def update_profile(request, id):
+
+    if request.method == 'POST':
+
+        body = request.POST
+        user = User.objects.get(pk=id)
+        file = request.FILES['image']
+
+        user.picture = file
+        user.full_name = body['full_name']
+        user.save()
+
+        return HttpResponse(status=status.HTTP_200_OK)
