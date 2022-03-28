@@ -1,8 +1,11 @@
+import logging
+
 from django.core import serializers
+from django.db.models import Q
 from django.shortcuts import render
 from django.db import connection
 from django.http import JsonResponse, HttpResponse, HttpRequest
-from .models import User, Task, Call, Contacts, Notification
+from .models import User, Task, Call, Contacts, Notification, Message
 from rest_framework import status
 from math import ceil
 from django.utils import timezone
@@ -11,7 +14,6 @@ from django.views.decorators.csrf import csrf_exempt
 
 def index(request):
     data = list(User.objects.values())
-
     return JsonResponse(data, safe=False)
 
 @csrf_exempt
@@ -168,3 +170,92 @@ def create_task(request):
 def update_task_by_id(request, id):
 
     return
+
+
+@csrf_exempt
+def create_msg(request):
+    if request.method == 'POST':
+        list_errors = []
+        curr_timestamp = timezone.now()
+
+        body = json.loads(request.body)
+
+        try:
+            user_id = body['senderid']
+            if not isinstance(user_id, int):
+                error_user_id = {
+                    "field": "senderid",
+                    "reasons": ["not_number"]
+                }
+                list_errors.append(error_user_id)
+        except KeyError:
+            error_user_id = {
+                "field": "senderid",
+                "reasons": ["required"]
+            }
+            list_errors.append(error_user_id)
+
+        try:
+            target_id = body['targetid']
+            if not isinstance(target_id, int):
+                error_target_id = {
+                    "field": "targetid",
+                    "reasons": ["not_number"]
+                }
+                list_errors.append(error_target_id)
+        except KeyError:
+            error_target_id = {
+                "field": "targetid",
+                "reasons": ["required"]
+            }
+            list_errors.append(error_target_id)
+
+        try:
+            content = body['content']
+        except KeyError:
+            error_name = {
+                "field": "content",
+                "reasons": ["required"]
+            }
+            list_errors.append(error_name)
+
+        if len(list_errors) > 0:
+            return JsonResponse({"errors": list_errors}, safe=False, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            new_msg = Message.objects.create(
+                senderid=User.objects.get(pk=user_id),
+                targetid=User.objects.get(pk=target_id),
+                content=content,
+                was_seen=False,
+                created_at=curr_timestamp)
+
+            list_response = Message.objects.filter(
+                senderid=int(user_id),
+                targetid=int(target_id),
+                content=content,
+                was_seen=False,
+                created_at=curr_timestamp).values('id', 'senderid', 'targetid', 'content', 'was_seen', 'created_at')[0]
+
+            return JsonResponse({"response": list_response}, safe=False, status=status.HTTP_200_OK)
+
+
+@csrf_exempt
+def view_msg(request):
+    if request.method == 'GET':
+        list_items = []
+        query_set = Message.objects.values('id', 'senderid', 'targetid', 'content', 'was_seen', 'created_at')
+
+        # QUERY
+        query_senderid = request.GET.get('senderid', '')
+        query_targetid = request.GET.get('targetid', '')
+        if query_senderid is not '' and query_targetid is not '':
+            query_set = query_set.filter((Q(senderid=query_senderid) & Q(targetid=query_targetid)) | (Q(targetid=query_senderid) & Q(senderid=query_targetid)))
+        else:
+            return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
+
+        query_set = query_set.order_by("-created_at")
+
+        for item in query_set:
+            list_items.append(item)
+
+        return JsonResponse({"items": list_items}, safe=False, status=status.HTTP_200_OK)
