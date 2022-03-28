@@ -10,4 +10,7 @@ urlpatterns = [
 
     path('msg/create', views.create_msg),
     path('msg/view', views.view_msg),
+    path('msg/delete/<int:id>', views.delete_msg_by_id, name='id'),
+
+    path('noti/delete/<int:id>', views.delete_noti_by_id, name='id'),
 ]

@@ -259,3 +259,27 @@ def view_msg(request):
             list_items.append(item)
 
         return JsonResponse({"items": list_items}, safe=False, status=status.HTTP_200_OK)
+
+
+@csrf_exempt
+def delete_msg_by_id(request, id):
+
+    if request.method == 'DELETE':
+        msg = Message.objects.filter(pk=id)
+        if msg:
+            msg.delete()
+            return HttpResponse(status=status.HTTP_200_OK)
+        else:
+            return HttpResponse(status=status.HTTP_404_NOT_FOUND)
+
+
+@csrf_exempt
+def delete_noti_by_id(request, id):
+
+    if request.method == 'DELETE':
+        noti = Notification.objects.filter(pk=id)
+        if noti:
+            noti.delete()
+            return HttpResponse(status=status.HTTP_200_OK)
+        else:
+            return HttpResponse(status=status.HTTP_404_NOT_FOUND)
