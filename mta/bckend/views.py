@@ -16,10 +16,10 @@ def index(request):
 
 @csrf_exempt
 def view_tasks(request):
-    columns = ('id', 'userid', 'targetid', 'name', 'created_at')
+    columns = ('id', 'userid', 'targetid', 'name', 'completion', 'created_at')
     if request.method == 'GET':
         list_items = []
-        query_set = Task.objects.values('id', 'userid', 'targetid', 'name', 'created_at')
+        query_set = Task.objects.values('id', 'userid', 'targetid', 'name', 'objective', 'completion', 'created_at')
 
         # STRANKOVANIE
         try:
@@ -42,6 +42,11 @@ def view_tasks(request):
         if query_targetid is not None:
             if isinstance(query_targetid, int):
                 query_set = query_set.filter(targetid=query_targetid)
+
+        query_completion = request.GET.get('completion', '')
+        if query_completion is not None:
+            if isinstance(query_completion, int):
+                query_set = query_set.filter(completion=query_completion)
 
         # ORDER BY
         order_column = request.GET.get('order_by')
@@ -144,7 +149,7 @@ def create_task(request):
             list_errors.append(error_completion)
 
         if len(list_errors) > 0:
-            return JsonResponse({"errors": list_errors}, safe=False, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+            return JsonResponse({"errors": list_errors}, safe=False, status=status.HTTP_400_BAD_REQUEST)
         else:
             new_task = Task.objects.create(
                 userid=User.objects.get(pk=user_id),
@@ -162,12 +167,142 @@ def create_task(request):
                 completion=int(completion),
                 created_at=curr_timestamp).values('id', 'userid', 'targetid', 'name', 'objective', 'completion', 'created_at')[0]
 
-            return JsonResponse({"response": list_response}, safe=False, status=status.HTTP_201_CREATED)
+            return JsonResponse({"response": list_response}, safe=False, status=status.HTTP_200_OK)
 
-
+@csrf_exempt
 def update_task_by_id(request, id):
+    if request.method == 'PUT':
+        task = Task.objects.get(pk=id)
+        try:
+            body = json.loads(request.body)
+            task.completion = body["completion"]
+            task.save()
+            return HttpResponse(status=status.HTTP_200_OK)
+        except:
+            return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
 
-    return
+
+@csrf_exempt
+def delete_task_by_id(request, id):
+    if request.method == 'DELETE':
+        task = Task.objects.filter(pk=id)
+        if task:
+            task.delete()
+            return HttpResponse(status=status.HTTP_200_OK)
+        else:
+            return HttpResponse(status=status.HTTP_404_NOT_FOUND)
+
+@csrf_exempt
+def view_contacts(request):
+    columns = ('id', 'userid', 'contactid', 'created_at')
+    if request.method == 'GET':
+        list_items = []
+        query_set = Contacts.objects.values('id', 'userid', 'contactid', 'created_at')
+
+        # STRANKOVANIE
+        try:
+            page = int(request.GET.get('page'))
+        except TypeError:
+            page = 1
+
+        try:
+            per_page = int(request.GET.get('per_page'))
+        except TypeError:
+            per_page = 10
+
+        # QUERY
+        query_userid = request.GET.get('userid', '')
+        if query_userid is not None:
+            if isinstance(query_userid, int):
+                query_set = query_set.filter(userid=query_userid)
+
+        query_contactid = request.GET.get('contactid', '')
+        if query_contactid is not None:
+            if isinstance(query_contactid, int):
+                query_set = query_set.filter(contactid=query_contactid)
+
+        # ORDER BY
+        order_column = request.GET.get('order_by')
+        if order_column is None or order_column not in columns:
+            order_column = 'id'
+
+        total = query_set.count()
+        dict_metadata = {
+            "page": page,
+            "per_page": per_page,
+            "pages": ceil(total / per_page),
+            "total": total
+        }
+
+        if dict_metadata["page"] <= dict_metadata["pages"]:
+            offset = ((page - 1) * per_page)
+            limit = offset + per_page
+            # ORDER TYPE
+            order_type = request.GET.get('order_type')
+            if order_type is None or order_type.upper() != "ASC":
+                query_set = query_set.order_by('-' + order_column)[offset:limit]
+            else:
+                query_set = query_set.order_by(order_column)[offset:limit]
+
+        for item in query_set:
+            list_items.append(item)
+
+        return JsonResponse({"items": list_items, "metadata": dict_metadata}, safe=False, status=status.HTTP_200_OK)
+
+
+@csrf_exempt
+def add_contact(request):
+    if request.method == 'POST':
+        list_response = {}
+        list_errors = []
+        curr_timestamp = timezone.now()
+
+        body = json.loads(request.body)
+
+        try:
+            user_id = body['userid']
+            if not isinstance(user_id, int):
+                error_user_id = {
+                    "field": "userid",
+                    "reasons": ["not_number"]
+                }
+                list_errors.append(error_user_id)
+        except KeyError:
+            error_user_id = {
+                "field": "userid",
+                "reasons": ["required"]
+            }
+            list_errors.append(error_user_id)
+
+        try:
+            contact_id = body['contactid']
+            if not isinstance(contact_id, int):
+                error_contact_id = {
+                    "field": "contactid",
+                    "reasons": ["not_number"]
+                }
+                list_errors.append(error_contact_id)
+        except KeyError:
+            error_contact_id = {
+                "field": "contactid",
+                "reasons": ["required"]
+            }
+            list_errors.append(error_contact_id)
+
+        if len(list_errors) > 0:
+            return JsonResponse({"errors": list_errors}, safe=False, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            new_contact = Contacts.objects.create(
+                userid=User.objects.get(pk=user_id),
+                contactid=User.objects.get(pk=contact_id),
+                created_at=curr_timestamp)
+
+            list_response = Contacts.objects.filter(
+                userid=int(user_id),
+                contactid=int(contact_id),
+                created_at=curr_timestamp).values('id', 'userid', 'contactid', 'created_at')[0]
+
+            return JsonResponse({"response": list_response}, safe=False, status=status.HTTP_200_OK)
 
 
 @csrf_exempt
