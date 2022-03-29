@@ -34,19 +34,16 @@ def view_tasks(request):
 
         # QUERY
         query_userid = request.GET.get('userid', '')
-        if query_userid is not None:
-            if isinstance(query_userid, int):
-                query_set = query_set.filter(userid=query_userid)
+        if query_userid != '':
+            query_set = query_set.filter(userid=query_userid)
 
         query_targetid = request.GET.get('targetid', '')
-        if query_targetid is not None:
-            if isinstance(query_targetid, int):
-                query_set = query_set.filter(targetid=query_targetid)
+        if query_targetid != '':
+            query_set = query_set.filter(targetid=query_targetid)
 
         query_completion = request.GET.get('completion', '')
-        if query_completion is not None:
-            if isinstance(query_completion, int):
-                query_set = query_set.filter(completion=query_completion)
+        if query_completion != '':
+            query_set = query_set.filter(completion=query_completion)
 
         # ORDER BY
         order_column = request.GET.get('order_by')
@@ -74,7 +71,13 @@ def view_tasks(request):
         for item in query_set:
             list_items.append(item)
 
-        return JsonResponse({"items": list_items, "metadata": dict_metadata}, safe=False, status=status.HTTP_200_OK)
+        print(query_userid)
+
+        if total == 0:
+            return HttpResponse(status=status.HTTP_404_NOT_FOUND)
+        else:
+            return JsonResponse({"items": list_items, "metadata": dict_metadata}, safe=False, status=status.HTTP_200_OK)
+
 
 @csrf_exempt
 def create_task(request):
@@ -149,7 +152,8 @@ def create_task(request):
             list_errors.append(error_completion)
 
         if len(list_errors) > 0:
-            return JsonResponse({"errors": list_errors}, safe=False, status=status.HTTP_400_BAD_REQUEST)
+            #return JsonResponse({"errors": list_errors}, safe=False, status=status.HTTP_400_BAD_REQUEST)
+            return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
         else:
             new_task = Task.objects.create(
                 userid=User.objects.get(pk=user_id),
@@ -168,6 +172,7 @@ def create_task(request):
                 created_at=curr_timestamp).values('id', 'userid', 'targetid', 'name', 'objective', 'completion', 'created_at')[0]
 
             return JsonResponse({"response": list_response}, safe=False, status=status.HTTP_200_OK)
+
 
 @csrf_exempt
 def update_task_by_id(request, id):
@@ -192,6 +197,7 @@ def delete_task_by_id(request, id):
         else:
             return HttpResponse(status=status.HTTP_404_NOT_FOUND)
 
+
 @csrf_exempt
 def view_contacts(request):
     columns = ('id', 'userid', 'contactid', 'created_at')
@@ -212,14 +218,12 @@ def view_contacts(request):
 
         # QUERY
         query_userid = request.GET.get('userid', '')
-        if query_userid is not None:
-            if isinstance(query_userid, int):
-                query_set = query_set.filter(userid=query_userid)
+        if query_userid != '':
+            query_set = query_set.filter(userid=query_userid)
 
         query_contactid = request.GET.get('contactid', '')
-        if query_contactid is not None:
-            if isinstance(query_contactid, int):
-                query_set = query_set.filter(contactid=query_contactid)
+        if query_contactid != '':
+            query_set = query_set.filter(contactid=query_contactid)
 
         # ORDER BY
         order_column = request.GET.get('order_by')
@@ -247,7 +251,10 @@ def view_contacts(request):
         for item in query_set:
             list_items.append(item)
 
-        return JsonResponse({"items": list_items, "metadata": dict_metadata}, safe=False, status=status.HTTP_200_OK)
+        if total == 0:
+            return HttpResponse(status=status.HTTP_404_NOT_FOUND)
+        else:
+            return JsonResponse({"items": list_items, "metadata": dict_metadata}, safe=False, status=status.HTTP_200_OK)
 
 
 @csrf_exempt
@@ -290,7 +297,8 @@ def add_contact(request):
             list_errors.append(error_contact_id)
 
         if len(list_errors) > 0:
-            return JsonResponse({"errors": list_errors}, safe=False, status=status.HTTP_400_BAD_REQUEST)
+            #return JsonResponse({"errors": list_errors}, safe=False, status=status.HTTP_400_BAD_REQUEST)
+            return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
         else:
             new_contact = Contacts.objects.create(
                 userid=User.objects.get(pk=user_id),
@@ -353,7 +361,8 @@ def create_msg(request):
             list_errors.append(error_name)
 
         if len(list_errors) > 0:
-            return JsonResponse({"errors": list_errors}, safe=False, status=status.HTTP_400_BAD_REQUEST)
+            #return JsonResponse({"errors": list_errors}, safe=False, status=status.HTTP_400_BAD_REQUEST)
+            return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
         else:
             new_msg = Message.objects.create(
                 senderid=User.objects.get(pk=user_id),
@@ -388,6 +397,8 @@ def view_msg(request):
 
         query_set = query_set.order_by("-created_at")
 
+        Task.objects.get(pk=1)
+
         for item in query_set:
             list_items.append(item)
 
@@ -417,17 +428,25 @@ def delete_noti_by_id(request, id):
         else:
             return HttpResponse(status=status.HTTP_404_NOT_FOUND)
 
+
 @csrf_exempt
 def update_profile(request, id):
 
     if request.method == 'POST':
 
-        body = request.POST
-        user = User.objects.get(pk=id)
-        file = request.FILES['image']
+        try:
+            user = User.objects.get(pk=id)
+        except User.DoesNotExist:
+            return HttpResponse(status=status.HTTP_404_NOT_FOUND)
+        try:
+            body = request.POST
+            user = User.objects.get(pk=id)
+            file = request.FILES['image']
 
-        user.picture = file
-        user.full_name = body['full_name']
-        user.save()
+            user.picture = file
+            user.full_name = body['full_name']
+            user.save()
+        except:
+            return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
 
         return HttpResponse(status=status.HTTP_200_OK)
