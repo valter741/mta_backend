@@ -1,6 +1,8 @@
+import secrets
+
 from django.db.models import Q
 from django.http import JsonResponse, HttpResponse, HttpRequest
-from .models import User, Task, Call, Contacts, Notification, Message
+from .models import User, Task, Call, Contacts, Notification, Message, UserPicture
 from rest_framework import status
 from math import ceil
 from django.utils import timezone
@@ -443,10 +445,97 @@ def update_profile(request, id):
             user = User.objects.get(pk=id)
             file = request.FILES['image']
 
-            user.picture = file
+            up = UserPicture()
+            up.picture = file
+            up.userid = user
+            up.save()
             user.full_name = body['full_name']
             user.save()
         except:
             return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
 
         return HttpResponse(status=status.HTTP_200_OK)
+
+@csrf_exempt
+def login(request):
+    columns = ('id', 'login', 'password')
+    if request.method == 'GET':
+        list_items = []
+        query_set = User.objects.values('id', 'login', 'password')
+
+        # QUERY
+        query_login = request.GET.get('login', '')
+        query_set = query_set.filter(login=query_login)
+
+        query_password = request.GET.get('password', '')
+        query_set = query_set.filter(password=query_password)
+
+        total = query_set.count()
+
+        for item in query_set:
+            list_items.append(item)
+
+        if total == 0:
+            return HttpResponse(status=status.HTTP_404_NOT_FOUND)
+        elif total == 1:
+            token = secrets.token_urlsafe(5)
+            user = User.objects.get(pk=list_items[0]['id'])
+            user.token = token
+            user.save()
+            return JsonResponse({"user": list_items[0], "token": token}, safe=False, status=status.HTTP_200_OK)
+
+
+@csrf_exempt
+def register(request):
+    if request.method == 'POST':
+        list_response = {}
+        list_errors = []
+        curr_timestamp = timezone.now()
+
+        body = json.loads(request.body)
+
+        try:
+            login = body['login']
+        except KeyError:
+            error_user_id = {
+                "field": "login",
+                "reasons": ["required"]
+            }
+            list_errors.append(error_user_id)
+
+        try:
+            password = body['password']
+        except KeyError:
+            error_contact_id = {
+                "field": "password",
+                "reasons": ["required"]
+            }
+            list_errors.append(error_contact_id)
+
+        try:
+            full_name = body['full_name']
+        except KeyError:
+            error_contact_id = {
+                "field": "full_name",
+                "reasons": ["required"]
+            }
+            list_errors.append(error_contact_id)
+
+        if len(list_errors) > 0:
+            #return JsonResponse({"errors": list_errors}, safe=False, status=status.HTTP_400_BAD_REQUEST)
+            return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
+        else:
+            if User.objects.filter(login=login).exists():
+                return HttpResponse(status=status.HTTP_409_CONFLICT)
+            new_contact = User.objects.create(
+                login=login,
+                password=password,
+                full_name=full_name,
+                created_at=curr_timestamp)
+
+            list_response = User.objects.filter(
+                login=login,
+                password=password,
+                full_name=full_name).values('login', 'password', 'full_name', 'created_at')[0]
+
+            return JsonResponse({"response": list_response}, safe=False, status=status.HTTP_200_OK)

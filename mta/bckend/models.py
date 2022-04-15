@@ -75,12 +75,22 @@ class Task(models.Model):
 class User(models.Model):
     id = models.AutoField(db_column='ID', primary_key=True)  # Field name made lowercase.
     full_name = models.CharField(max_length=255, blank=True, null=True)
-    picture = models.FileField(upload_to='pictures')
     login = models.CharField(max_length=255, blank=True, null=True)
     password = models.CharField(max_length=255, blank=True, null=True)
     created_at = models.DateTimeField(blank=True, null=True)
+    token = models.CharField(max_length=255, blank=True, null=True)
 
     class Meta:
-        managed = False
+        managed = True
         db_table = 'User'
+
+class UserPicture(models.Model):
+    id = models.AutoField(db_column='ID', primary_key=True)  # Field name made lowercase.
+    userid = models.ForeignKey('User', models.DO_NOTHING, db_column='userID', blank=True, null=True,
+                               related_name='picuserid')
+    picture = models.FileField(upload_to='pictures')
+
+    class Meta:
+        managed = True
+        db_table = 'UserPicture'
 
