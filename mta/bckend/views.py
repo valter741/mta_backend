@@ -445,23 +445,30 @@ def update_profile(request, id):
             user = User.objects.get(pk=id)
             file = request.FILES['image']
 
+            try:
+                up = UserPicture.objects.get(userid=user)
+                up.delete()
+            except:
+                pass
+
             up = UserPicture()
             up.picture = file
             up.userid = user
             up.save()
             user.full_name = body['full_name']
             user.save()
-        except:
+        except Exception as e:
+            print(e)
             return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
 
         return HttpResponse(status=status.HTTP_200_OK)
 
 @csrf_exempt
 def login(request):
-    columns = ('id', 'login', 'password')
+    columns = ('id', 'login', 'password', 'full_name')
     if request.method == 'GET':
         list_items = []
-        query_set = User.objects.values('id', 'login', 'password')
+        query_set = User.objects.values('id', 'login', 'password', 'full_name')
 
         # QUERY
         query_login = request.GET.get('login', '')
@@ -478,11 +485,17 @@ def login(request):
         if total == 0:
             return HttpResponse(status=status.HTTP_404_NOT_FOUND)
         elif total == 1:
+            url = '/pictures/placeholder.jpg';
             token = secrets.token_urlsafe(5)
             user = User.objects.get(pk=list_items[0]['id'])
+            try:
+                picture = UserPicture.objects.get(userid=user)
+                url = picture.picture.url
+            except:
+                pass
             user.token = token
             user.save()
-            return JsonResponse({"user": list_items[0], "token": token}, safe=False, status=status.HTTP_200_OK)
+            return JsonResponse({"user": list_items[0], "token": token, "pic": url}, safe=False, status=status.HTTP_200_OK)
 
 
 @csrf_exempt
