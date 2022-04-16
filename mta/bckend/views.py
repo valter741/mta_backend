@@ -445,13 +445,20 @@ def update_profile(request, id):
             user = User.objects.get(pk=id)
             file = request.FILES['image']
 
+            try:
+                up = UserPicture.objects.get(userid=user)
+                up.delete()
+            except:
+                pass
+
             up = UserPicture()
             up.picture = file
             up.userid = user
             up.save()
             user.full_name = body['full_name']
             user.save()
-        except:
+        except Exception as e:
+            print(e)
             return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
 
         return HttpResponse(status=status.HTTP_200_OK)
