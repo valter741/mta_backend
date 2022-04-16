@@ -458,10 +458,10 @@ def update_profile(request, id):
 
 @csrf_exempt
 def login(request):
-    columns = ('id', 'login', 'password')
+    columns = ('id', 'login', 'password', 'full_name')
     if request.method == 'GET':
         list_items = []
-        query_set = User.objects.values('id', 'login', 'password')
+        query_set = User.objects.values('id', 'login', 'password', 'full_name')
 
         # QUERY
         query_login = request.GET.get('login', '')
@@ -480,9 +480,10 @@ def login(request):
         elif total == 1:
             token = secrets.token_urlsafe(5)
             user = User.objects.get(pk=list_items[0]['id'])
+            picture = UserPicture.objects.get(userid=user)
             user.token = token
             user.save()
-            return JsonResponse({"user": list_items[0], "token": token}, safe=False, status=status.HTTP_200_OK)
+            return JsonResponse({"user": list_items[0], "token": token, "pic": picture.picture.url}, safe=False, status=status.HTTP_200_OK)
 
 
 @csrf_exempt
