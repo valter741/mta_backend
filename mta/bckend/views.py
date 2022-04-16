@@ -478,12 +478,17 @@ def login(request):
         if total == 0:
             return HttpResponse(status=status.HTTP_404_NOT_FOUND)
         elif total == 1:
+            url = '/pictures/placeholder.jpg';
             token = secrets.token_urlsafe(5)
             user = User.objects.get(pk=list_items[0]['id'])
-            picture = UserPicture.objects.get(userid=user)
+            try:
+                picture = UserPicture.objects.get(userid=user)
+                url = picture.picture.url
+            except:
+                pass
             user.token = token
             user.save()
-            return JsonResponse({"user": list_items[0], "token": token, "pic": picture.picture.url}, safe=False, status=status.HTTP_200_OK)
+            return JsonResponse({"user": list_items[0], "token": token, "pic": url}, safe=False, status=status.HTTP_200_OK)
 
 
 @csrf_exempt
