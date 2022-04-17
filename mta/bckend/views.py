@@ -202,6 +202,7 @@ def delete_task_by_id(request, id):
 
 @csrf_exempt
 def view_contacts(request):
+
     columns = ('id', 'userid', 'contactid', 'created_at')
     if request.method == 'GET':
         list_items = []
@@ -219,6 +220,8 @@ def view_contacts(request):
             per_page = 10
 
         # QUERY
+        query_token = request.GET.get('token', '')
+
         query_userid = request.GET.get('userid', '')
         if query_userid != '':
             query_set = query_set.filter(userid=query_userid)
@@ -226,6 +229,12 @@ def view_contacts(request):
         query_contactid = request.GET.get('contactid', '')
         if query_contactid != '':
             query_set = query_set.filter(contactid=query_contactid)
+
+        try:
+            if query_token != User.objects.get(pk=query_userid).token:
+                return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
+        except:
+            return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
 
         # ORDER BY
         order_column = request.GET.get('order_by')
@@ -251,12 +260,10 @@ def view_contacts(request):
                 query_set = query_set.order_by(order_column)[offset:limit]
 
         for item in query_set:
+            item['contactname'] = User.objects.get(pk=item["contactid"]).full_name
             list_items.append(item)
 
-        if total == 0:
-            return HttpResponse(status=status.HTTP_404_NOT_FOUND)
-        else:
-            return JsonResponse({"items": list_items, "metadata": dict_metadata}, safe=False, status=status.HTTP_200_OK)
+        return JsonResponse({"items": list_items, "metadata": dict_metadata}, safe=False, status=status.HTTP_200_OK)
 
 
 @csrf_exempt
@@ -392,6 +399,14 @@ def view_msg(request):
         # QUERY
         query_senderid = request.GET.get('senderid', '')
         query_targetid = request.GET.get('targetid', '')
+        query_token = request.GET.get('token', '')
+
+        try:
+            if query_token != User.objects.get(pk=query_senderid).token:
+                return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
+        except:
+            return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
+
         if query_senderid is not '' and query_targetid is not '':
             query_set = query_set.filter((Q(senderid=query_senderid) & Q(targetid=query_targetid)) | (Q(targetid=query_senderid) & Q(senderid=query_targetid)))
         else:
