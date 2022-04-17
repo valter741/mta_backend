@@ -250,14 +250,12 @@ def view_contacts(request):
         }
 
         if dict_metadata["page"] <= dict_metadata["pages"]:
-            offset = ((page - 1) * per_page)
-            limit = offset + per_page
             # ORDER TYPE
             order_type = request.GET.get('order_type')
             if order_type is None or order_type.upper() != "ASC":
-                query_set = query_set.order_by('-' + order_column)[offset:limit]
+                query_set = query_set.order_by('-' + order_column)
             else:
-                query_set = query_set.order_by(order_column)[offset:limit]
+                query_set = query_set.order_by(order_column)
 
         for item in query_set:
             item['contactname'] = User.objects.get(pk=item["contactid"]).full_name
@@ -305,8 +303,26 @@ def add_contact(request):
             }
             list_errors.append(error_contact_id)
 
+        try:
+            token = body['token']
+        except KeyError:
+            error_token = {
+                "field": "contactid",
+                "reasons": ["required"]
+            }
+            list_errors.append(error_token)
+
+        try:
+            if token != User.objects.get(pk=user_id).token:
+                print("zly token")
+                return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
+        except:
+            print("nenasli sme usera")
+            return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
+
         if len(list_errors) > 0:
             #return JsonResponse({"errors": list_errors}, safe=False, status=status.HTTP_400_BAD_REQUEST)
+            print("listerror")
             return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
         else:
             new_contact = Contacts.objects.create(
@@ -369,7 +385,25 @@ def create_msg(request):
             }
             list_errors.append(error_name)
 
+        try:
+            token = body['token']
+        except KeyError:
+            error_token = {
+                "field": "contactid",
+                "reasons": ["required"]
+            }
+            list_errors.append(error_token)
+
+        try:
+            if token != User.objects.get(pk=user_id).token:
+                print("zly token")
+                return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
+        except:
+            print("nenasli sme usera")
+            return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
+
         if len(list_errors) > 0:
+            print(list_errors)
             #return JsonResponse({"errors": list_errors}, safe=False, status=status.HTTP_400_BAD_REQUEST)
             return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
         else:
