@@ -1,4 +1,5 @@
 import secrets
+import os
 
 from django.db.models import Q
 from django.http import JsonResponse, HttpResponse, HttpRequest
@@ -459,10 +460,19 @@ def view_msg(request):
 @csrf_exempt
 def delete_msg_by_id(request, id):
 
-    query_token = request.GET.get('token', '')
-
     if request.method == 'DELETE':
+        token = ""
+
+        try:
+            body = json.loads(request.body)
+            token = body['token']
+        except:
+            return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
+
         msg = Message.objects.filter(pk=id)
+        user = msg[0].senderid
+        if user.token != token:
+            return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
         if msg:
             msg.delete()
             return HttpResponse(status=status.HTTP_200_OK)
@@ -498,7 +508,12 @@ def update_profile(request, id):
 
             try:
                 up = UserPicture.objects.get(userid=user)
+                print(up.picture.url)
+                if os.path.isfile('.' + up.picture.url):
+                    print("deleted")
+                    os.remove('.' + up.picture.url)
                 up.delete()
+
             except:
                 pass
 
