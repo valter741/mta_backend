@@ -43,9 +43,11 @@ def view_tasks(request):
         if query_targetid != '':
             query_set = query_set.filter(targetid=query_targetid)
 
-        query_completion = request.GET.get('completion', '')
+        query_completion = request.GET.getlist('completion', '')
+        for i, item in enumerate(query_completion):
+            query_completion[i] = int(item)
         if query_completion != '':
-            query_set = query_set.filter(completion=query_completion)
+            query_set = query_set.filter(completion__in=query_completion)
 
         # ORDER BY
         order_column = request.GET.get('order_by')
@@ -71,9 +73,10 @@ def view_tasks(request):
                 query_set = query_set.order_by(order_column)[offset:limit]
 
         for item in query_set:
+            item['userFullName'] = User.objects.get(pk=item['userid']).full_name
+            item['targetFullName'] = User.objects.get(pk=item['targetid']).full_name
             list_items.append(item)
-
-        print(query_userid)
+        #print(list_items)
 
         if total == 0:
             return HttpResponse(status=status.HTTP_404_NOT_FOUND)
