@@ -482,6 +482,122 @@ def delete_msg_by_id(request, id):
         else:
             return HttpResponse(status=status.HTTP_404_NOT_FOUND)
 
+@csrf_exempt
+def view_notifications(request):
+    if request.method == 'GET':
+        list_items = []
+        query_set = Notification.objects.values('id', 'userid', 'targetid', 'taskid', 'content', 'was_seen', 'created_at')
+
+        # QUERY
+        query_userid = request.GET.get('userid', '')
+        if query_userid != '':
+            query_set = query_set.filter(userid=query_userid)
+
+        query_targetid = request.GET.get('targetid', '')
+        if query_targetid != '':
+            query_set = query_set.filter(targetid=query_targetid)
+
+        query_set = query_set.order_by("-created_at")
+
+        for item in query_set:
+            item['userFullName'] = User.objects.get(pk=item['userid']).full_name
+            item['targetFullName'] = User.objects.get(pk=item['targetid']).full_name
+            item['taskName'] = Task.objects.get(pk=item['taskid']).name
+            item['taskCompletion'] = Task.objects.get(pk=item['taskid']).completion
+            list_items.append(item)
+        # print(list_items)
+
+        total = query_set.count()
+        if total == 0:
+            return HttpResponse(status=status.HTTP_404_NOT_FOUND)
+        else:
+             return JsonResponse({"items": list_items}, safe=False, status=status.HTTP_200_OK)
+
+@csrf_exempt
+def create_notification(request):
+    if request.method == 'POST':
+        list_errors = []
+        curr_timestamp = timezone.now()
+
+        body = json.loads(request.body)
+
+        try:
+            user_id = body['userid']
+            if not isinstance(user_id, int):
+                error_user_id = {
+                    "field": "userid",
+                    "reasons": ["not_number"]
+                }
+                list_errors.append(error_user_id)
+        except KeyError:
+            error_user_id = {
+                "field": "userid",
+                "reasons": ["required"]
+            }
+            list_errors.append(error_user_id)
+
+        try:
+            target_id = body['targetid']
+            if not isinstance(target_id, int):
+                error_target_id = {
+                    "field": "targetid",
+                    "reasons": ["not_number"]
+                }
+                list_errors.append(error_target_id)
+        except KeyError:
+            error_target_id = {
+                "field": "targetid",
+                "reasons": ["required"]
+            }
+            list_errors.append(error_target_id)
+
+        try:
+            task_id = body['taskid']
+            if not isinstance(task_id, int):
+                error_task_id = {
+                    "field": "taskid",
+                    "reasons": ["not_number"]
+                }
+                list_errors.append(error_task_id)
+        except KeyError:
+            error_task_id = {
+                "field": "taskid",
+                "reasons": ["required"]
+            }
+            list_errors.append(error_task_id)
+
+        try:
+            content = body['content']
+        except KeyError:
+            error_name = {
+                "field": "content",
+                "reasons": ["required"]
+            }
+            list_errors.append(error_name)
+
+        if len(list_errors) > 0:
+            print(list_errors)
+            #return JsonResponse({"errors": list_errors}, safe=False, status=status.HTTP_400_BAD_REQUEST)
+            return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
+        else:
+            new_noti = Notification.objects.create(
+                userid=User.objects.get(pk=user_id),
+                targetid=User.objects.get(pk=target_id),
+                taskid=Task.objects.get(pk=task_id),
+                content=content,
+                was_seen=False,
+                created_at=curr_timestamp)
+
+            list_response = Notification.objects.filter(
+                userid=int(user_id),
+                targetid=int(target_id),
+                taskid=int(task_id),
+                content=content,
+                was_seen=False,
+                created_at=curr_timestamp).values('id', 'userid', 'targetid', 'content', 'was_seen', 'created_at')[0]
+
+            return JsonResponse({"response": list_response}, safe=False, status=status.HTTP_200_OK)
+
 
 @csrf_exempt
 def delete_noti_by_id(request, id):

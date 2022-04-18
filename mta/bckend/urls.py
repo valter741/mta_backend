@@ -19,6 +19,8 @@ urlpatterns = [
     path('msg/view', views.view_msg),
     path('msg/delete/<int:id>', views.delete_msg_by_id, name='id'),
 
+    path('noti/view', views.view_notifications),
+    path('noti/create', views.create_notification),
     path('noti/delete/<int:id>', views.delete_noti_by_id, name='id'),
 
     path('profile/update/<int:id>', views.update_profile, name='id'),
