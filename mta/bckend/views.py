@@ -459,6 +459,8 @@ def view_msg(request):
 @csrf_exempt
 def delete_msg_by_id(request, id):
 
+    query_token = request.GET.get('token', '')
+
     if request.method == 'DELETE':
         msg = Message.objects.filter(pk=id)
         if msg:
