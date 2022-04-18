@@ -1,4 +1,5 @@
 import secrets
+import os
 
 from django.db.models import Q
 from django.http import JsonResponse, HttpResponse, HttpRequest
@@ -205,6 +206,7 @@ def delete_task_by_id(request, id):
 
 @csrf_exempt
 def view_contacts(request):
+
     columns = ('id', 'userid', 'contactid', 'created_at')
     if request.method == 'GET':
         list_items = []
@@ -222,6 +224,8 @@ def view_contacts(request):
             per_page = 10
 
         # QUERY
+        query_token = request.GET.get('token', '')
+
         query_userid = request.GET.get('userid', '')
         if query_userid != '':
             query_set = query_set.filter(userid=query_userid)
@@ -229,6 +233,12 @@ def view_contacts(request):
         query_contactid = request.GET.get('contactid', '')
         if query_contactid != '':
             query_set = query_set.filter(contactid=query_contactid)
+
+        try:
+            if query_token != User.objects.get(pk=query_userid).token:
+                return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
+        except:
+            return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
 
         # ORDER BY
         order_column = request.GET.get('order_by')
@@ -244,22 +254,18 @@ def view_contacts(request):
         }
 
         if dict_metadata["page"] <= dict_metadata["pages"]:
-            offset = ((page - 1) * per_page)
-            limit = offset + per_page
             # ORDER TYPE
             order_type = request.GET.get('order_type')
             if order_type is None or order_type.upper() != "ASC":
-                query_set = query_set.order_by('-' + order_column)[offset:limit]
+                query_set = query_set.order_by('-' + order_column)
             else:
-                query_set = query_set.order_by(order_column)[offset:limit]
+                query_set = query_set.order_by(order_column)
 
         for item in query_set:
+            item['contactname'] = User.objects.get(pk=item["contactid"]).full_name
             list_items.append(item)
 
-        if total == 0:
-            return HttpResponse(status=status.HTTP_404_NOT_FOUND)
-        else:
-            return JsonResponse({"items": list_items, "metadata": dict_metadata}, safe=False, status=status.HTTP_200_OK)
+        return JsonResponse({"items": list_items, "metadata": dict_metadata}, safe=False, status=status.HTTP_200_OK)
 
 
 @csrf_exempt
@@ -301,8 +307,26 @@ def add_contact(request):
             }
             list_errors.append(error_contact_id)
 
+        try:
+            token = body['token']
+        except KeyError:
+            error_token = {
+                "field": "contactid",
+                "reasons": ["required"]
+            }
+            list_errors.append(error_token)
+
+        try:
+            if token != User.objects.get(pk=user_id).token:
+                print("zly token")
+                return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
+        except:
+            print("nenasli sme usera")
+            return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
+
         if len(list_errors) > 0:
             #return JsonResponse({"errors": list_errors}, safe=False, status=status.HTTP_400_BAD_REQUEST)
+            print("listerror")
             return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
         else:
             new_contact = Contacts.objects.create(
@@ -365,7 +389,25 @@ def create_msg(request):
             }
             list_errors.append(error_name)
 
+        try:
+            token = body['token']
+        except KeyError:
+            error_token = {
+                "field": "contactid",
+                "reasons": ["required"]
+            }
+            list_errors.append(error_token)
+
+        try:
+            if token != User.objects.get(pk=user_id).token:
+                print("zly token")
+                return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
+        except:
+            print("nenasli sme usera")
+            return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
+
         if len(list_errors) > 0:
+            print(list_errors)
             #return JsonResponse({"errors": list_errors}, safe=False, status=status.HTTP_400_BAD_REQUEST)
             return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
         else:
@@ -395,6 +437,14 @@ def view_msg(request):
         # QUERY
         query_senderid = request.GET.get('senderid', '')
         query_targetid = request.GET.get('targetid', '')
+        query_token = request.GET.get('token', '')
+
+        try:
+            if query_token != User.objects.get(pk=query_senderid).token:
+                return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
+        except:
+            return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
+
         if query_senderid is not '' and query_targetid is not '':
             query_set = query_set.filter((Q(senderid=query_senderid) & Q(targetid=query_targetid)) | (Q(targetid=query_senderid) & Q(senderid=query_targetid)))
         else:
@@ -414,7 +464,18 @@ def view_msg(request):
 def delete_msg_by_id(request, id):
 
     if request.method == 'DELETE':
+        token = ""
+
+        try:
+            body = json.loads(request.body)
+            token = body['token']
+        except:
+            return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
+
         msg = Message.objects.filter(pk=id)
+        user = msg[0].senderid
+        if user.token != token:
+            return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
         if msg:
             msg.delete()
             return HttpResponse(status=status.HTTP_200_OK)
@@ -450,7 +511,12 @@ def update_profile(request, id):
 
             try:
                 up = UserPicture.objects.get(userid=user)
+                print(up.picture.url)
+                if os.path.isfile('.' + up.picture.url):
+                    print("deleted")
+                    os.remove('.' + up.picture.url)
                 up.delete()
+
             except:
                 pass
 
