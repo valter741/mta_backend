@@ -157,6 +157,21 @@ def create_task(request):
             }
             list_errors.append(error_completion)
 
+        try:
+            token = body['token']
+        except KeyError:
+            error_token = {
+                "field": "contactid",
+                "reasons": ["required"]
+            }
+            list_errors.append(error_token)
+
+        try:
+            if token != User.objects.get(pk=user_id).token:
+                return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
+        except:
+            return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
+
         if len(list_errors) > 0:
             #return JsonResponse({"errors": list_errors}, safe=False, status=status.HTTP_400_BAD_REQUEST)
             return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
@@ -183,10 +198,18 @@ def create_task(request):
 @csrf_exempt
 def update_task_by_id(request, id):
     if request.method == 'PUT':
+        token = ""
         task = Task.objects.get(pk=id)
         try:
             body = json.loads(request.body)
             task.completion = body["completion"]
+            token = body['token']
+            print(token)
+            user = task.userid
+            target = task.targetid
+            print(user.token, target.token)
+            if user.token != token and target.token != token:
+                return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
             task.save()
             return HttpResponse(status=status.HTTP_200_OK)
         except:
@@ -196,7 +219,18 @@ def update_task_by_id(request, id):
 @csrf_exempt
 def delete_task_by_id(request, id):
     if request.method == 'DELETE':
+        token = ""
+
+        try:
+            body = json.loads(request.body)
+            token = body['token']
+        except:
+            return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
+
         task = Task.objects.filter(pk=id)
+        user = task[0].userid
+        if user.token != token:
+            return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
         if task:
             task.delete()
             return HttpResponse(status=status.HTTP_200_OK)
@@ -575,6 +609,21 @@ def create_notification(request):
             }
             list_errors.append(error_name)
 
+        try:
+            token = body['token']
+        except KeyError:
+            error_token = {
+                "field": "contactid",
+                "reasons": ["required"]
+            }
+            list_errors.append(error_token)
+
+        try:
+            if token != User.objects.get(pk=user_id).token:
+                return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
+        except:
+            return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
+
         if len(list_errors) > 0:
             print(list_errors)
             #return JsonResponse({"errors": list_errors}, safe=False, status=status.HTTP_400_BAD_REQUEST)
@@ -601,9 +650,20 @@ def create_notification(request):
 
 @csrf_exempt
 def delete_noti_by_id(request, id):
-
     if request.method == 'DELETE':
+        token = ""
+
+        try:
+            body = json.loads(request.body)
+            token = body['token']
+        except:
+            return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
+
         noti = Notification.objects.filter(pk=id)
+        target = noti[0].targetid
+        print(token, target.token)
+        if target.token != token:
+            return HttpResponse(status=status.HTTP_400_BAD_REQUEST)
         if noti:
             noti.delete()
             return HttpResponse(status=status.HTTP_200_OK)
