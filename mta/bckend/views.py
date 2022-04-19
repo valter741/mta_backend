@@ -627,7 +627,7 @@ def update_profile(request, id):
 
             try:
                 up = UserPicture.objects.get(userid=user)
-                print(up.picture.url)
+                print('.' + up.picture.url)
                 if os.path.isfile('.' + up.picture.url):
                     print("deleted")
                     os.remove('.' + up.picture.url)
